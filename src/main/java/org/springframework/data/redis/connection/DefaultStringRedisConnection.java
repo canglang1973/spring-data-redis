@@ -1207,6 +1207,15 @@ public class DefaultStringRedisConnection implements StringRedisConnection, Deco
 
 	/*
 	 * (non-Javadoc)
+	 * @see org.springframework.data.redis.connection.RedisKeyCommands#touch(byte[][])
+	 */
+	@Override
+	public Long touch(byte[]... keys) {
+		return convertAndReturn(delegate.touch(keys), identityConverter);
+	}
+
+	/*
+	 * (non-Javadoc)
 	 * @see org.springframework.data.redis.connection.RedisTxCommands#unwatch()
 	 */
 	@Override
@@ -2494,6 +2503,16 @@ public class DefaultStringRedisConnection implements StringRedisConnection, Deco
 	@Override
 	public DataType type(String key) {
 		return type(serialize(key));
+	}
+
+	/*
+	 * (non-Javadoc)
+	 * @see org.springframework.data.redis.connection.StringRedisConnection#touch(java.lang.String[])
+	 */
+	@Nullable
+	@Override
+	public Long touch(String... keys) {
+		return touch(serializeMulti(keys));
 	}
 
 	/*

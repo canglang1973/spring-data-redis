@@ -2685,8 +2685,7 @@ public abstract class AbstractConnectionIntegrationTests {
 		actual.add(connection.hSet("hash-hstrlen", "key-2", "value-2"));
 		actual.add(connection.hStrLen("hash-hstrlen", "key-2"));
 
-		verifyResults(
-				Arrays.asList(new Object[] { Boolean.TRUE, Boolean.TRUE, Long.valueOf("value-2".length()) }));
+		verifyResults(Arrays.asList(new Object[] { Boolean.TRUE, Boolean.TRUE, Long.valueOf("value-2".length()) }));
 	}
 
 	@Test // DATAREDIS-698
@@ -2695,8 +2694,7 @@ public abstract class AbstractConnectionIntegrationTests {
 		actual.add(connection.hSet("hash-hstrlen", "key-1", "value-1"));
 		actual.add(connection.hStrLen("hash-hstrlen", "key-2"));
 
-		verifyResults(
-				Arrays.asList(new Object[] { Boolean.TRUE, 0L }));
+		verifyResults(Arrays.asList(new Object[] { Boolean.TRUE, 0L }));
 	}
 
 	@Test // DATAREDIS-698
@@ -2704,8 +2702,25 @@ public abstract class AbstractConnectionIntegrationTests {
 
 		actual.add(connection.hStrLen("hash-no-exist", "key-2"));
 
-		verifyResults(
-				Arrays.asList(new Object[] { 0L }));
+		verifyResults(Arrays.asList(new Object[] { 0L }));
+	}
+
+	@Test // DATAREDIS-694
+	public void touchReturnsNrOfKeysTouched() {
+
+		connection.set("touch.this", "Can't touch this! - oh-oh oh oh oh-oh-oh");
+
+		actual.add(connection.touch("touch.this", "touch.that"));
+
+		verifyResults(Arrays.asList(new Object[] { 1L }));
+	}
+
+	@Test // DATAREDIS-694
+	public void touchReturnsZeroIfNoKeysTouched() {
+
+		actual.add(connection.touch("touch.this", "touch.that"));
+
+		verifyResults(Arrays.asList(new Object[] { 0L }));
 	}
 
 	protected void verifyResults(List<Object> expected) {
