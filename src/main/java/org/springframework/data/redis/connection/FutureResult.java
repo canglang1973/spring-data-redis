@@ -28,23 +28,43 @@ import org.springframework.lang.Nullable;
  */
 public abstract class FutureResult<T> {
 
-	protected T resultHolder;
+	private T resultHolder;
 
-	protected boolean status = false;
+	private boolean status = false;
 
 	@SuppressWarnings("rawtypes") //
 	protected @Nullable Converter converter;
 
+	/**
+	 * Create new {@link FutureResult} for given object actually holding the result itself.
+	 *
+	 * @param resultHolder must not be {@literal null}.
+	 */
 	public FutureResult(T resultHolder) {
-		this.resultHolder = resultHolder;
+		this(resultHolder, val -> val);
 	}
 
+	/**
+	 * Create new {@link FutureResult} for given object actually holding the result itself and a converter capable of
+	 * transforming the result via {@link #convert(Object)}.
+	 *
+	 * @param resultHolder must not be {@literal null}.
+	 * @param converter can be {@literal null} and will be defaulted to an identity converter {@code value -> value} to
+	 *          preserve the original value.
+	 */
 	@SuppressWarnings("rawtypes")
-	public FutureResult(T resultHolder, Converter converter) {
+	public FutureResult(T resultHolder, @Nullable Converter converter) {
+
 		this.resultHolder = resultHolder;
-		this.converter = converter;
+		this.converter = converter != null ? converter : val -> val;
 	}
 
+	/**
+	 * Get the object holding the actual result.
+	 *
+	 * @return never {@literal null}.
+	 * @since 1.1
+	 */
 	public T getResultHolder() {
 		return resultHolder;
 	}
@@ -63,11 +83,10 @@ public abstract class FutureResult<T> {
 			return null;
 		}
 
-		return (converter != null) ? converter.convert(result) : result;
+		return converter.convert(result);
 	}
 
 	@SuppressWarnings("rawtypes")
-	@Nullable
 	public Converter getConverter() {
 		return converter;
 	}
@@ -93,4 +112,12 @@ public abstract class FutureResult<T> {
 	 */
 	@Nullable
 	public abstract Object get();
+
+	/**
+	 * Indicate whether or not the actual result needs to be {@link #convert(Object) converted} before handing over.
+	 *
+	 * @return
+	 * @since 2.1
+	 */
+	public abstract boolean seeksConversion();
 }

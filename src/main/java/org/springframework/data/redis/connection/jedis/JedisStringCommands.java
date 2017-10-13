@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.connection.convert.Converters;
-import org.springframework.data.redis.connection.jedis.JedisConnection.JedisResult;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;

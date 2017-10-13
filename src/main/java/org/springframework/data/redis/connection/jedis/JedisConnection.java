@@ -39,6 +39,8 @@ import org.springframework.data.redis.RedisConnectionFailureException;
 import org.springframework.data.redis.RedisSystemException;
 import org.springframework.data.redis.connection.*;
 import org.springframework.data.redis.connection.convert.TransactionResultConverter;
+import org.springframework.data.redis.connection.jedis.JedisResult.JedisResultBuilder;
+import org.springframework.data.redis.connection.jedis.JedisResult.JedisStatusResult;
 import org.springframework.lang.Nullable;
 import org.springframework.util.Assert;
 import org.springframework.util.CollectionUtils;
@@ -75,42 +77,8 @@ public class JedisConnection extends AbstractRedisConnection {
 	private final int dbIndex;
 	private final String clientName;
 	private boolean convertPipelineAndTxResults = true;
-	private List<FutureResult<Response<?>>> pipelinedResults = new ArrayList<>();
+	private List<JedisResult> pipelinedResults = new ArrayList<>();
 	private Queue<FutureResult<Response<?>>> txResults = new LinkedList<>();
-
-	class JedisResult extends FutureResult<Response<?>> {
-
-		public <T> JedisResult(Response<T> resultHolder, Converter<T, ?> converter) {
-			super(resultHolder, converter);
-		}
-
-		public <T> JedisResult(Response<T> resultHolder) {
-			super(resultHolder);
-		}
-
-		@SuppressWarnings("unchecked")
-		public Object get() {
-
-			Object raw = resultHolder.get();
-			if (!convertPipelineAndTxResults || raw == null) {
-				return raw;
-			}
-
-			return converter != null ? converter.convert(raw) : raw;
-		}
-	}
-
-	private class JedisStatusResult extends JedisResult {
-		public JedisStatusResult(Response<?> resultHolder) {
-			super(resultHolder);
-			setStatus(true);
-		}
-
-		public <T> JedisStatusResult(Response<T> resultHolder, Converter<T, ?> converter) {
-			super(resultHolder, converter);
-			setStatus(true);
-		}
-	}
 
 	/**
 	 * Constructs a new <code>JedisConnection</code> instance.
@@ -285,9 +253,11 @@ public class JedisConnection extends AbstractRedisConnection {
 				Response<Object> result = JedisClientUtils
 						.getResponse(isPipelined() ? getRequiredPipeline() : getRequiredTransaction());
 				if (isPipelined()) {
-					pipeline(new JedisResult(result));
+					pipeline(
+							JedisResultBuilder.forResponse(result).convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				} else {
-					transaction(new JedisResult(result));
+					transaction(
+							JedisResultBuilder.forResponse(result).convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				}
 				return null;
 			}
@@ -414,11 +384,13 @@ public class JedisConnection extends AbstractRedisConnection {
 		List<Object> results = new ArrayList<>();
 		getRequiredPipeline().sync();
 		Exception cause = null;
-		for (FutureResult<Response<?>> result : pipelinedResults) {
+		for (JedisResult result : pipelinedResults) {
 			try {
+
 				Object data = result.get();
-				if (!convertPipelineAndTxResults || !(result.isStatus())) {
-					results.add(data);
+
+				if (!result.isStatus()) {
+					results.add(result.seeksConversion() ? result.convert(data) : data);
 				}
 			} catch (JedisDataException e) {
 				DataAccessException dataAccessException = convertJedisAccessException(e);
@@ -439,7 +411,7 @@ public class JedisConnection extends AbstractRedisConnection {
 		return results;
 	}
 
-	void pipeline(FutureResult<Response<?>> result) {
+	void pipeline(JedisResult result) {
 		if (isQueueing()) {
 			transaction(result);
 		} else {
@@ -459,11 +431,13 @@ public class JedisConnection extends AbstractRedisConnection {
 	public byte[] echo(byte[] message) {
 		try {
 			if (isPipelined()) {
-				pipeline(new JedisResult(getRequiredPipeline().echo(message)));
+				pipeline(JedisResultBuilder.forResponse(getRequiredPipeline().echo(message))
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(new JedisResult(getRequiredTransaction().echo(message)));
+				transaction(JedisResultBuilder.forResponse(getRequiredTransaction().echo(message))
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 			return jedis.echo(message);
@@ -480,11 +454,13 @@ public class JedisConnection extends AbstractRedisConnection {
 	public String ping() {
 		try {
 			if (isPipelined()) {
-				pipeline(new JedisResult(getRequiredPipeline().ping()));
+				pipeline(JedisResultBuilder.forResponse(getRequiredPipeline().ping())
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(new JedisResult(getRequiredTransaction().ping()));
+				transaction(JedisResultBuilder.forResponse(getRequiredTransaction().ping())
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 			return jedis.ping();
@@ -501,7 +477,7 @@ public class JedisConnection extends AbstractRedisConnection {
 	public void discard() {
 		try {
 			if (isPipelined()) {
-				pipeline(new JedisStatusResult(getRequiredPipeline().discard()));
+				pipeline(newStatusResult(getRequiredPipeline().discard()));
 				return;
 			}
 			getRequiredTransaction().discard();
@@ -521,16 +497,19 @@ public class JedisConnection extends AbstractRedisConnection {
 	public List<Object> exec() {
 		try {
 			if (isPipelined()) {
-				pipeline(new JedisResult(getRequiredPipeline().exec(),
-						new TransactionResultConverter<>(new LinkedList<>(txResults), JedisConverters.exceptionConverter())));
+				pipeline(JedisResultBuilder.forResponse(getRequiredPipeline().exec())
+						.mappedWith(
+								new TransactionResultConverter<>(new LinkedList<>(txResults), JedisConverters.exceptionConverter()))
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 
 			if (transaction == null) {
 				throw new InvalidDataAccessApiUsageException("No ongoing transaction. Did you forget to call multi?");
 			}
+
 			List<Object> results = transaction.exec();
-			return convertPipelineAndTxResults && !CollectionUtils.isEmpty(results)
+			return !CollectionUtils.isEmpty(results)
 					? new TransactionResultConverter<>(txResults, JedisConverters.exceptionConverter()).convert(results)
 					: results;
 		} catch (Exception ex) {
@@ -578,19 +557,21 @@ public class JedisConnection extends AbstractRedisConnection {
 	}
 
 	JedisResult newJedisResult(Response<?> response) {
-		return new JedisResult(response);
+		return JedisResultBuilder.forResponse(response).convertPipelineAndTxResults(convertPipelineAndTxResults).build();
 	}
 
 	<T> JedisResult newJedisResult(Response<T> response, Converter<T, ?> converter) {
-		return new JedisResult(response, converter);
+		return JedisResultBuilder.forResponse(response).mappedWith(converter)
+				.convertPipelineAndTxResults(convertPipelineAndTxResults).build();
 	}
 
 	JedisStatusResult newStatusResult(Response<?> response) {
-		return new JedisStatusResult(response);
+		return JedisResultBuilder.forResponse(response).buildStatusResult();
 	}
 
 	<T> JedisStatusResult newStatusResult(Response<T> response, Converter<T, ?> converter) {
-		return new JedisStatusResult(response, converter);
+		return JedisResultBuilder.forResponse(response).mappedWith(converter)
+				.convertPipelineAndTxResults(convertPipelineAndTxResults).buildStatusResult();
 	}
 
 	/*
@@ -621,11 +602,11 @@ public class JedisConnection extends AbstractRedisConnection {
 	public void select(int dbIndex) {
 		try {
 			if (isPipelined()) {
-				pipeline(new JedisStatusResult(getRequiredPipeline().select(dbIndex)));
+				pipeline(newStatusResult(getRequiredPipeline().select(dbIndex)));
 				return;
 			}
 			if (isQueueing()) {
-				transaction(new JedisStatusResult(getRequiredTransaction().select(dbIndex)));
+				transaction(newStatusResult(getRequiredTransaction().select(dbIndex)));
 				return;
 			}
 			jedis.select(dbIndex);
@@ -659,7 +640,7 @@ public class JedisConnection extends AbstractRedisConnection {
 		try {
 			for (byte[] key : keys) {
 				if (isPipelined()) {
-					pipeline(new JedisStatusResult(getRequiredPipeline().watch(key)));
+					pipeline(newStatusResult(getRequiredPipeline().watch(key)));
 				} else {
 					jedis.watch(key);
 				}
@@ -681,11 +662,13 @@ public class JedisConnection extends AbstractRedisConnection {
 	public Long publish(byte[] channel, byte[] message) {
 		try {
 			if (isPipelined()) {
-				pipeline(new JedisResult(getRequiredPipeline().publish(channel, message)));
+				pipeline(JedisResultBuilder.forResponse(getRequiredPipeline().publish(channel, message))
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(new JedisResult(getRequiredTransaction().publish(channel, message)));
+				transaction(JedisResultBuilder.forResponse(getRequiredTransaction().publish(channel, message))
+						.convertPipelineAndTxResults(convertPipelineAndTxResults).build());
 				return null;
 			}
 			return jedis.publish(channel, message);

@@ -32,7 +32,6 @@ import org.springframework.data.geo.Metric;
 import org.springframework.data.geo.Point;
 import org.springframework.data.redis.connection.RedisGeoCommands;
 import org.springframework.data.redis.connection.convert.ListConverter;
-import org.springframework.data.redis.connection.jedis.JedisConnection.JedisResult;
 import org.springframework.util.Assert;
 
 /**
