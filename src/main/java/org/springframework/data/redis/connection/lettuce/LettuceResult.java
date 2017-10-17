@@ -18,6 +18,7 @@ package org.springframework.data.redis.connection.lettuce;
 import io.lettuce.core.protocol.RedisCommand;
 
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.redis.connection.FutureResult;
@@ -42,7 +43,13 @@ class LettuceResult<T, S> extends FutureResult<RedisCommand<?, T, ?>> {
 	}
 
 	<T> LettuceResult(Future<T> resultHolder, boolean convertPipelineAndTxResults, @Nullable Converter<T, ?> converter) {
-		super((RedisCommand) resultHolder, converter);
+		this(resultHolder, () -> null, convertPipelineAndTxResults, converter);
+	}
+
+	<T> LettuceResult(Future<T> resultHolder, Supplier<S> defaultReturnValue, boolean convertPipelineAndTxResults,
+			@Nullable Converter<T, ?> converter) {
+
+		super((RedisCommand) resultHolder, converter, defaultReturnValue);
 		this.convertPipelineAndTxResults = convertPipelineAndTxResults;
 	}
 
@@ -97,7 +104,12 @@ class LettuceResult<T, S> extends FutureResult<RedisCommand<?, T, ?>> {
 		}
 
 		LettuceTxResult(T resultHolder, boolean convertPipelineAndTxResults, Converter<?, ?> converter) {
-			super(resultHolder, converter);
+			this(resultHolder, () -> null, convertPipelineAndTxResults, converter);
+		}
+
+		LettuceTxResult(T resultHolder, Supplier<Object> defaultReturnValue, boolean convertPipelineAndTxResults,
+				Converter<?, ?> converter) {
+			super(resultHolder, converter, defaultReturnValue);
 			this.convertPipelineAndTxResults = convertPipelineAndTxResults;
 		}
 
@@ -137,6 +149,7 @@ class LettuceResult<T, S> extends FutureResult<RedisCommand<?, T, ?>> {
 		private final Object response;
 		private Converter<T, ?> converter;
 		private boolean convertPipelineAndTxResults = false;
+		private Supplier<?> nullValueDefault = () -> null;
 
 		LettuceResultBuilder(Object response) {
 
@@ -158,6 +171,16 @@ class LettuceResult<T, S> extends FutureResult<RedisCommand<?, T, ?>> {
 			return (LettuceResultBuilder<T, S>) this;
 		}
 
+		<S> LettuceResultBuilder<T, S> defaultNullTo(S value) {
+			return (defaultNullTo(() -> value));
+		}
+
+		<S> LettuceResultBuilder<T, S> defaultNullTo(Supplier<S> value) {
+
+			this.nullValueDefault = value;
+			return (LettuceResultBuilder<T, S>) this;
+		}
+
 		LettuceResultBuilder<T, S> convertPipelineAndTxResults(boolean flag) {
 
 			convertPipelineAndTxResults = flag;
@@ -165,12 +188,12 @@ class LettuceResult<T, S> extends FutureResult<RedisCommand<?, T, ?>> {
 		}
 
 		LettuceResult<T, S> build() {
-			return new LettuceResult((Future<T>) response, convertPipelineAndTxResults, converter);
+			return new LettuceResult((Future<T>) response, nullValueDefault, convertPipelineAndTxResults, converter);
 		}
 
 		LettuceTxResult<T> buildTxResult() {
 
-			return new LettuceTxResult(response, convertPipelineAndTxResults, converter);
+			return new LettuceTxResult(response, nullValueDefault, convertPipelineAndTxResults, converter);
 		}
 
 		LettuceResult buildStatusResult() {

@@ -27,6 +27,7 @@ import java.util.concurrent.Future;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.connection.convert.Converters;
+import org.springframework.data.redis.connection.lettuce.LettuceResult.LettuceResultBuilder;
 import org.springframework.data.redis.connection.lettuce.LettuceResult.LettuceTxResult;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.util.Assert;
@@ -130,13 +131,13 @@ class LettuceStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newLettuceStatusResult(getAsyncConnection().set(key, value),
-						Converters.stringToBooleanConverter()));
+				pipeline(
+						connection.newLettuceResult(getAsyncConnection().set(key, value), Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newLettuceTxStatusResult(getConnection().set(key, value),
-						Converters.stringToBooleanConverter()));
+				transaction(
+						connection.newLettuceTxResult(getConnection().set(key, value), Converters.stringToBooleanConverter()));
 				return null;
 			}
 			return Converters.stringToBoolean(getConnection().set(key, value));
@@ -159,15 +160,26 @@ class LettuceStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newLettuceStatusResult(
-						getAsyncConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option)),
-						Converters.stringToBooleanConverter()));
+				pipeline(
+						LettuceResultBuilder //
+								.forResponse(getAsyncConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option))) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter())
+								.defaultNullTo(Boolean.FALSE).build());
+
+//						connection.newLettuceResult(
+//						getAsyncConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option)),
+//						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newLettuceTxStatusResult(
-						getConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option)),
-						Converters.stringToBooleanConverter()));
+				transaction(
+
+						LettuceResultBuilder //
+								.forResponse(getConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option))) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter())
+								.defaultNullTo(Boolean.FALSE).buildTxResult());
 				return null;
 			}
 			return Converters
@@ -214,12 +226,12 @@ class LettuceStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newLettuceStatusResult(getAsyncConnection().setex(key, seconds, value),
+				pipeline(connection.newLettuceResult(getAsyncConnection().setex(key, seconds, value),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newLettuceTxStatusResult(getConnection().setex(key, seconds, value),
+				transaction(connection.newLettuceTxResult(getConnection().setex(key, seconds, value),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
@@ -241,12 +253,12 @@ class LettuceStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newLettuceStatusResult(getAsyncConnection().psetex(key, milliseconds, value),
+				pipeline(connection.newLettuceResult(getAsyncConnection().psetex(key, milliseconds, value),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newLettuceTxStatusResult(getConnection().psetex(key, milliseconds, value),
+				transaction(connection.newLettuceTxResult(getConnection().psetex(key, milliseconds, value),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
@@ -267,13 +279,11 @@ class LettuceStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newLettuceStatusResult(getAsyncConnection().mset(tuples),
-						Converters.stringToBooleanConverter()));
+				pipeline(connection.newLettuceResult(getAsyncConnection().mset(tuples), Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(
-						connection.newLettuceTxStatusResult(getConnection().mset(tuples), Converters.stringToBooleanConverter()));
+				transaction(connection.newLettuceTxResult(getConnection().mset(tuples), Converters.stringToBooleanConverter()));
 				return null;
 			}
 			return Converters.stringToBoolean(getConnection().mset(tuples));

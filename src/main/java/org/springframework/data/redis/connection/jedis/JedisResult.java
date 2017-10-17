@@ -15,6 +15,8 @@
  */
 package org.springframework.data.redis.connection.jedis;
 
+import java.util.function.Supplier;
+
 import redis.clients.jedis.Response;
 
 import org.springframework.core.convert.converter.Converter;
@@ -39,8 +41,13 @@ class JedisResult<T, S> extends FutureResult<Response<?>> {
 	}
 
 	<T> JedisResult(Response<T> resultHolder, boolean convertPipelineAndTxResults, @Nullable Converter<T, ?> converter) {
+		this(resultHolder, null, convertPipelineAndTxResults, converter);
+	}
 
-		super(resultHolder, converter);
+	<T> JedisResult(Response<T> resultHolder, Supplier<S> defaultReturnValue, boolean convertPipelineAndTxResults,
+			@Nullable Converter<T, ?> converter) {
+
+		super(resultHolder, converter, defaultReturnValue);
 		this.convertPipelineAndTxResults = convertPipelineAndTxResults;
 	}
 
@@ -88,6 +95,7 @@ class JedisResult<T, S> extends FutureResult<Response<?>> {
 		private final Response<T> response;
 		private Converter<T, ?> converter;
 		private boolean convertPipelineAndTxResults = false;
+		private Supplier<?> nullValueDefault = () -> null;
 
 		JedisResultBuilder(Response<T> response) {
 
@@ -105,6 +113,17 @@ class JedisResult<T, S> extends FutureResult<Response<?>> {
 			return (JedisResultBuilder<T, S>) this;
 		}
 
+		<S> JedisResultBuilder<T, S> defaultNullTo(S value) {
+			return (defaultNullTo(() -> value));
+		}
+
+		<S> JedisResultBuilder<T, S> defaultNullTo(Supplier<S> value) {
+
+			this.nullValueDefault = value;
+			return (JedisResultBuilder<T, S>) this;
+		}
+
+
 		JedisResultBuilder<T, S> convertPipelineAndTxResults(boolean flag) {
 
 			convertPipelineAndTxResults = flag;
@@ -112,7 +131,7 @@ class JedisResult<T, S> extends FutureResult<Response<?>> {
 		}
 
 		JedisResult<T, S> build() {
-			return new JedisResult(response, convertPipelineAndTxResults, converter);
+			return new JedisResult(response, nullValueDefault, convertPipelineAndTxResults, converter);
 		}
 
 		JedisStatusResult buildStatusResult() {

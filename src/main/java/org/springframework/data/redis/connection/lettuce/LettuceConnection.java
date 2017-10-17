@@ -145,10 +145,6 @@ public class LettuceConnection extends AbstractRedisConnection {
 		return new LettuceTxStatusResult(resultHolder);
 	}
 
-	LettuceTxStatusResult newLettuceTxStatusResult(Object resultHolder, Converter conveter) {
-		return new LettuceTxStatusResult(resultHolder);
-	}
-
 	private class LettuceTransactionResultConverter<T> extends TransactionResultConverter<T> {
 		public LettuceTransactionResultConverter(Queue<FutureResult<T>> txResults,
 				Converter<Exception, DataAccessException> exceptionConverter) {

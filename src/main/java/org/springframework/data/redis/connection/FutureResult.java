@@ -15,6 +15,8 @@
  */
 package org.springframework.data.redis.connection;
 
+import java.util.function.Supplier;
+
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.lang.Nullable;
 
@@ -29,6 +31,7 @@ import org.springframework.lang.Nullable;
 public abstract class FutureResult<T> {
 
 	private T resultHolder;
+	private final Supplier<?> defaultConversionResult;
 
 	private boolean status = false;
 
@@ -54,9 +57,25 @@ public abstract class FutureResult<T> {
 	 */
 	@SuppressWarnings("rawtypes")
 	public FutureResult(T resultHolder, @Nullable Converter converter) {
+		this(resultHolder, converter, () -> null);
+	}
+
+	/**
+	 * Create new {@link FutureResult} for given object actually holding the result itself and a converter capable of
+	 * transforming the result via {@link #convert(Object)}.
+	 *
+	 * @param resultHolder must not be {@literal null}.
+	 * @param converter can be {@literal null} and will be defaulted to an identity converter {@code value -> value} to
+	 *          preserve the original value.
+	 * @param defaultConversionResult must not be {@literal null}.
+	 * @since 2.1
+	 */
+	@SuppressWarnings("rawtypes")
+	public FutureResult(T resultHolder, @Nullable Converter converter, Supplier<?> defaultConversionResult) {
 
 		this.resultHolder = resultHolder;
 		this.converter = converter != null ? converter : val -> val;
+		this.defaultConversionResult = defaultConversionResult;
 	}
 
 	/**
@@ -80,10 +99,15 @@ public abstract class FutureResult<T> {
 	public Object convert(@Nullable Object result) {
 
 		if (result == null) {
-			return null;
+			return computeDefaultResult(result);
 		}
 
-		return converter.convert(result);
+		return computeDefaultResult(converter.convert(result));
+	}
+
+	@Nullable
+	private Object computeDefaultResult(@Nullable Object source) {
+		return source != null ? source : defaultConversionResult.get();
 	}
 
 	@SuppressWarnings("rawtypes")

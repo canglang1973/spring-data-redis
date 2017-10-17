@@ -24,6 +24,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.connection.convert.Converters;
+import org.springframework.data.redis.connection.jedis.JedisResult.JedisResultBuilder;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.util.Assert;
 import org.springframework.util.ObjectUtils;
@@ -125,12 +126,12 @@ class JedisStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newStatusResult(connection.getRequiredPipeline().set(key, value),
+				pipeline(connection.newJedisResult(connection.getRequiredPipeline().set(key, value),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newStatusResult(connection.getRequiredTransaction().set(key, value),
+				transaction(connection.newJedisResult(connection.getRequiredTransaction().set(key, value),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
@@ -164,14 +165,18 @@ class JedisStringCommands implements RedisStringCommands {
 
 					if (isPipelined()) {
 
-						pipeline(connection.newStatusResult(connection.getRequiredPipeline().set(key, value, nxxx),
-								Converters.stringToBooleanConverter()));
+						pipeline(JedisResultBuilder //
+								.forResponse(connection.getRequiredPipeline().set(key, value, nxxx)) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
 						return null;
 					}
 					if (isQueueing()) {
 
-						transaction(connection.newStatusResult(connection.getRequiredTransaction().set(key, value, nxxx),
-								Converters.stringToBooleanConverter()));
+						transaction(JedisResultBuilder //
+								.forResponse(connection.getRequiredTransaction().set(key, value, nxxx)) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
 						return null;
 					}
 
@@ -204,9 +209,10 @@ class JedisStringCommands implements RedisStringCommands {
 									"Expiration.expirationTime must be less than Integer.MAX_VALUE for pipeline in Jedis.");
 						}
 
-						pipeline(connection.newStatusResult(
-								connection.getRequiredPipeline().set(key, value, nxxx, expx, (int) expiration.getExpirationTime()),
-								Converters.stringToBooleanConverter()));
+						pipeline(JedisResultBuilder //
+								.forResponse(connection.getRequiredPipeline().set(key, value, nxxx, expx, (int) expiration.getExpirationTime())) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
 						return null;
 					}
 					if (isQueueing()) {
@@ -216,9 +222,10 @@ class JedisStringCommands implements RedisStringCommands {
 									"Expiration.expirationTime must be less than Integer.MAX_VALUE for transactions in Jedis.");
 						}
 
-						transaction(connection.newStatusResult(
-								connection.getRequiredTransaction().set(key, value, nxxx, expx, (int) expiration.getExpirationTime()),
-								Converters.stringToBooleanConverter()));
+						transaction(JedisResultBuilder //
+								.forResponse(connection.getRequiredTransaction().set(key, value, nxxx, expx, (int) expiration.getExpirationTime())) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
 						return null;
 					}
 
@@ -276,13 +283,24 @@ class JedisStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newStatusResult(connection.getRequiredPipeline().setex(key, (int) seconds, value),
-						Converters.stringToBooleanConverter()));
+				pipeline(
+						JedisResultBuilder //
+								.forResponse(connection.getRequiredPipeline().setex(key, (int) seconds, value)) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
+
+//						connection.newJedisResult(connection.getRequiredPipeline().setex(key, (int) seconds, value),
+//						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newStatusResult(connection.getRequiredTransaction().setex(key, (int) seconds, value),
-						Converters.stringToBooleanConverter()));
+				transaction(
+						JedisResultBuilder //
+								.forResponse(connection.getRequiredTransaction().setex(key, (int) seconds, value)) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
+//						connection.newJedisResult(connection.getRequiredTransaction().setex(key, (int) seconds, value),
+//						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			return Converters.stringToBoolean(connection.getJedis().setex(key, (int) seconds, value));
@@ -303,13 +321,22 @@ class JedisStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newStatusResult(connection.getRequiredPipeline().psetex(key, milliseconds, value),
-						Converters.stringToBooleanConverter()));
+				pipeline(
+						JedisResultBuilder //
+								.forResponse(connection.getRequiredPipeline().psetex(key, milliseconds, value)) //
+								.convertPipelineAndTxResults(true) //
+								.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
+
+
+//						connection.newJedisResult(connection.getRequiredPipeline().psetex(key, milliseconds, value),
+//						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection.newStatusResult(connection.getRequiredTransaction().psetex(key, milliseconds, value),
-						Converters.stringToBooleanConverter()));
+				transaction(JedisResultBuilder //
+						.forResponse(connection.getRequiredTransaction().psetex(key, milliseconds, value)) //
+						.convertPipelineAndTxResults(true) //
+						.mappedWith(Converters.stringToBooleanConverter()).defaultNullTo(Boolean.FALSE).build());
 				return null;
 			}
 			return Converters.stringToBoolean(connection.getJedis().psetex(key, milliseconds, value));
@@ -329,13 +356,13 @@ class JedisStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(connection.newStatusResult(connection.getRequiredPipeline().mset(JedisConverters.toByteArrays(tuples)),
+				pipeline(connection.newJedisResult(connection.getRequiredPipeline().mset(JedisConverters.toByteArrays(tuples)),
 						Converters.stringToBooleanConverter()));
 				return null;
 			}
 			if (isQueueing()) {
 				transaction(
-						connection.newStatusResult(connection.getRequiredTransaction().mset(JedisConverters.toByteArrays(tuples)),
+						connection.newJedisResult(connection.getRequiredTransaction().mset(JedisConverters.toByteArrays(tuples)),
 								Converters.stringToBooleanConverter()));
 				return null;
 			}
