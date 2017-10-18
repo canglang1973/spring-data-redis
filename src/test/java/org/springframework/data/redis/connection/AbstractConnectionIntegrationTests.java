@@ -159,7 +159,7 @@ public abstract class AbstractConnectionIntegrationTests {
 		actual.add(connection.set("exp", "true"));
 		actual.add(connection.expire("exp", 1));
 
-		verifyResults(Arrays.asList(true, true ));
+		verifyResults(Arrays.asList(true, true));
 		assertTrue(waitFor(new KeyExpired("exp"), 3000l));
 	}
 
@@ -169,7 +169,7 @@ public abstract class AbstractConnectionIntegrationTests {
 
 		actual.add(connection.set("exp2", "true"));
 		actual.add(connection.expireAt("exp2", System.currentTimeMillis() / 1000 + 1));
-		verifyResults(Arrays.asList(true, true ));
+		verifyResults(Arrays.asList(true, true));
 		assertTrue(waitFor(new KeyExpired("exp2"), 3000l));
 	}
 
@@ -428,7 +428,7 @@ public abstract class AbstractConnectionIntegrationTests {
 		actual.add(connection.pSetEx("expy", 500L, "yep"));
 		actual.add(connection.get("expy"));
 
-		verifyResults(Arrays.asList(true, "yep" ));
+		verifyResults(Arrays.asList(true, "yep"));
 		assertTrue(waitFor(new KeyExpired("expy"), 2500L));
 	}
 
@@ -859,10 +859,6 @@ public abstract class AbstractConnectionIntegrationTests {
 		actual.add(connection.exec());
 
 		verifyResults(Arrays.asList(true, Arrays.asList(true, "somethingelse")));
-		// List<Object> results = getResults();
-		//
-		// List<Object> execResults = (List<Object>) results.get(0);
-		// assertEquals(Arrays.asList(true, "somethingelse"), execResults);
 	}
 
 	@Test

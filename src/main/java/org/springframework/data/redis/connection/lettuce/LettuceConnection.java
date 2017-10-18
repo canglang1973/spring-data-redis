@@ -53,6 +53,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Supplier;
 
 import org.springframework.beans.BeanUtils;
 import org.springframework.core.convert.converter.Converter;
@@ -119,16 +120,19 @@ public class LettuceConnection extends AbstractRedisConnection {
 	}
 
 	<T> LettuceResult newLettuceResult(Future<T> resultHolder, Converter<T, ?> converter) {
+
 		return LettuceResultBuilder.forResponse(resultHolder).mappedWith(converter)
 				.convertPipelineAndTxResults(convertPipelineAndTxResults).build();
 	}
 
-	LettuceStatusResult newLettuceStatusResult(Future<?> resultHolder) {
-		return new LettuceStatusResult(resultHolder);
+	<T> LettuceResult newLettuceResult(Future<T> resultHolder, Converter<T, ?> converter, Supplier<?> defaultValue) {
+
+		return LettuceResultBuilder.forResponse(resultHolder).mappedWith(converter)
+				.convertPipelineAndTxResults(convertPipelineAndTxResults).defaultNullTo(defaultValue).build();
 	}
 
-	<T> LettuceStatusResult newLettuceStatusResult(Future<T> resultHolder, Converter<T, ?> converter) {
-		return new LettuceStatusResult(resultHolder, convertPipelineAndTxResults, converter);
+	LettuceStatusResult newLettuceStatusResult(Future<?> resultHolder) {
+		return new LettuceStatusResult(resultHolder);
 	}
 
 	LettuceTxResult newLettuceTxResult(Object resultHolder) {
@@ -139,6 +143,12 @@ public class LettuceConnection extends AbstractRedisConnection {
 
 		return LettuceResultBuilder.forResponse(resultHolder).mappedWith(converter)
 				.convertPipelineAndTxResults(convertPipelineAndTxResults).buildTxResult();
+	}
+
+	<T> LettuceTxResult<T> newLettuceTxResult(Object resultHolder, Converter converter, Supplier<?> defaultValue) {
+
+		return LettuceResultBuilder.forResponse(resultHolder).mappedWith(converter)
+				.convertPipelineAndTxResults(convertPipelineAndTxResults).defaultNullTo(defaultValue).buildTxResult();
 	}
 
 	LettuceTxStatusResult newLettuceTxStatusResult(Object resultHolder) {

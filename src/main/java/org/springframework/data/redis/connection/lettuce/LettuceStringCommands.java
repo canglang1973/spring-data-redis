@@ -27,7 +27,6 @@ import java.util.concurrent.Future;
 import org.springframework.dao.DataAccessException;
 import org.springframework.data.redis.connection.RedisStringCommands;
 import org.springframework.data.redis.connection.convert.Converters;
-import org.springframework.data.redis.connection.lettuce.LettuceResult.LettuceResultBuilder;
 import org.springframework.data.redis.connection.lettuce.LettuceResult.LettuceTxResult;
 import org.springframework.data.redis.core.types.Expiration;
 import org.springframework.util.Assert;
@@ -160,26 +159,15 @@ class LettuceStringCommands implements RedisStringCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(
-						LettuceResultBuilder //
-								.forResponse(getAsyncConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option))) //
-								.convertPipelineAndTxResults(true) //
-								.mappedWith(Converters.stringToBooleanConverter())
-								.defaultNullTo(Boolean.FALSE).build());
-
-//						connection.newLettuceResult(
-//						getAsyncConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option)),
-//						Converters.stringToBooleanConverter()));
+				pipeline(connection.newLettuceResult(
+						getAsyncConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option)),
+						Converters.stringToBooleanConverter(), () -> false));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(
-
-						LettuceResultBuilder //
-								.forResponse(getConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option))) //
-								.convertPipelineAndTxResults(true) //
-								.mappedWith(Converters.stringToBooleanConverter())
-								.defaultNullTo(Boolean.FALSE).buildTxResult());
+				transaction(connection.newLettuceTxResult(
+						getConnection().set(key, value, LettuceConverters.toSetArgs(expiration, option)),
+						Converters.stringToBooleanConverter(), () -> false));
 				return null;
 			}
 			return Converters

@@ -15,9 +15,9 @@
  */
 package org.springframework.data.redis.connection.jedis;
 
-import java.util.function.Supplier;
-
 import redis.clients.jedis.Response;
+
+import java.util.function.Supplier;
 
 import org.springframework.core.convert.converter.Converter;
 import org.springframework.data.redis.connection.FutureResult;
@@ -122,7 +122,6 @@ class JedisResult<T, S> extends FutureResult<Response<?>> {
 			this.nullValueDefault = value;
 			return (JedisResultBuilder<T, S>) this;
 		}
-
 
 		JedisResultBuilder<T, S> convertPipelineAndTxResults(boolean flag) {
 

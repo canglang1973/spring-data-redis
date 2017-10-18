@@ -82,13 +82,11 @@ class JedisKeyCommands implements RedisKeyCommands {
 
 		try {
 			if (isPipelined()) {
-				pipeline(
-						connection.newJedisResult(connection.getRequiredPipeline().exists(keys)));
+				pipeline(connection.newJedisResult(connection.getRequiredPipeline().exists(keys)));
 				return null;
 			}
 			if (isQueueing()) {
-				transaction(connection
-						.newJedisResult(connection.getRequiredTransaction().exists(keys)));
+				transaction(connection.newJedisResult(connection.getRequiredTransaction().exists(keys)));
 				return null;
 			}
 			return connection.getJedis().exists(keys);
